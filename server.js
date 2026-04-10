@@ -1,5 +1,5 @@
 // Importação das bibliotecas
-require('dotenv').config(); // Carrega variáveis do arquivo .env
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -20,12 +20,16 @@ app.use(express.json());
 // Conexão com o Banco de Dados PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false } // necessário no Render
+  ssl: { rejectUnauthorized: false }
 });
+
+// 🔥 DEBUG DE CONEXÃO (IMPORTANTE)
+pool.connect()
+  .then(() => console.log("✅ Conectado ao banco"))
+  .catch(err => console.error("❌ Erro ao conectar no banco:", err));
 
 // --- ROTA DE API (REST) ---
 
-// Listar todos os alertas salvos no banco
 app.get('/alertas', async (req, res) => {
   try {
     const result = await pool.query(
@@ -33,12 +37,11 @@ app.get('/alertas', async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error("Erro na rota GET /alertas:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Criar um novo alerta e avisar o Front-end via WebSocket
 app.post('/alertas', async (req, res) => {
   const { mensagem, nivel } = req.body;
 
@@ -49,12 +52,11 @@ app.post('/alertas', async (req, res) => {
     const result = await pool.query(query, [mensagem, nivel]);
     const novoAlerta = result.rows[0];
 
-    // Envia para todos os usuários conectados
     io.emit('novo_alerta', novoAlerta);
 
     res.status(201).json(novoAlerta);
   } catch (err) {
-    console.error(err);
+    console.error("Erro na rota POST /alertas:", err);
     res.status(500).json({ error: err.message });
   }
 });
